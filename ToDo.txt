@@ -1,0 +1,27 @@
+*Features to Add*
+
+General:------------------------------------------------------------------------
+[]Adjust console size
+[]Gather user input as GVs
+[]Log the screen
+[]replay functionality
+
+
+Terrain:------------------------------------------------------------------------
+[]Add more terrain types
+  []Foothills
+  []Beaches
+
+
+Animals:------------------------------------------------------------------------
+[]Add sheep behavior
+  [] Movement
+    [X]Basic Movement
+    []Pathfinding
+  []Fleeing
+  []Herding
+  []Eat (interact with terrain)
+  []Breed
+    []Inheritance from parents
+  []Lifecycle
+    []Growth of babies
