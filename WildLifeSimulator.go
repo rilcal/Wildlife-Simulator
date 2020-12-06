@@ -1,21 +1,24 @@
 package main
 
 import (
-	"math"
 	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/aquilax/go-perlin"
 	"github.com/gdamore/tcell"
+	"github.com/rilcal/Wildlife-Simulator/structs"
 )
 
 //Global Variables
-var w, s = generateInitialVariables()
-var a = populateWorld(25, 5)
+var w structs.World
+var s tcell.Screen
+var a structs.Animals
 
 // MAIN FUNCTION
 func main() {
+	generateInitialVariables()
+	populateWorld(25, 5)
 	defer s.Fini()
 	rand.Seed(time.Now().UnixNano())
 	updateScreen()
@@ -23,47 +26,83 @@ func main() {
 	mainLoop()
 }
 
-// Funtions
-func generateInitialVariables() (w world, s tcell.Screen) {
-	s, err := tcell.NewScreen()
+// Functions
+func generateInitialVariables() {
+	var err error
+	s, err = tcell.NewScreen()
 	if err != nil {
 		panic(err)
 	}
 	s.Init()
 	x, y := s.Size()
 	w = newWorld(x-1, y-1)
-	w.generateTerrain()
+	generateTerrain()
 	return
 }
 
-func populateWorld(numSheep int, numWolves int) animals {
-	var a animals
+//generates initial terrain of the structs.World
+func generateTerrain() {
+	rand.Seed(time.Now().UnixNano())
+	p := perlin.NewPerlin(2, 2, 10, int64(rand.Int()))
+	w.Tiles = make([][]structs.Tile, w.Width)
+	// Initializing the tiles
+	for i := range w.Tiles {
+		w.Tiles[i] = make([]structs.Tile, w.Length)
+	}
+
+	waterCount := 0
+	landCount := 0
+	for x := 0; x < w.Width; x++ {
+		for y := 0; y < w.Length; y++ {
+			terrain := p.Noise2D(float64(x)/10, float64(y)/10)
+			if terrain <= -0.12 {
+				w.Tiles[x][y] = getTileType("Water")
+				wp := newPoint(x, y)
+				w.WaterTile = append(w.WaterTile, wp)
+				waterCount++
+			} else if terrain > -0.12 && terrain < 0.3 {
+				w.Tiles[x][y] = getTileType("Land")
+				lp := newPoint(x, y)
+				w.LandTile = append(w.LandTile, lp)
+				landCount++
+			} else {
+				w.Tiles[x][y] = getTileType("Mountain")
+				lp := newPoint(x, y)
+				w.LandTile = append(w.LandTile, lp)
+				landCount++
+			}
+		}
+	}
+}
+
+func populateWorld(numSheep int, numWolves int) structs.Animals {
+	var a structs.Animals
 
 	//Generate sheep population
-	a.sheeps = make([]animal, numSheep)
+	a.Sheeps = make([]structs.Animal, numSheep)
 	for i := 0; i < numSheep; i++ {
-		a.sheeps[i] = newAnimal("Sheep", i)
-		w.tiles[a.sheeps[i].pos.x][a.sheeps[i].pos.y].hasAnimal = true
-		w.tiles[a.sheeps[i].pos.x][a.sheeps[i].pos.y].animal = a.sheeps[i]
+		a.Sheeps[i] = newAnimal("Sheep", i)
+		w.Tiles[a.Sheeps[i].Pos.X][a.Sheeps[i].Pos.Y].HasAnimal = true
+		w.Tiles[a.Sheeps[i].Pos.X][a.Sheeps[i].Pos.Y].AnimalType = a.Sheeps[i]
 	}
 
 	//Generate wolf population
-	a.wolves = make([]animal, numWolves)
+	a.Wolves = make([]structs.Animal, numWolves)
 	for j := 0; j < numWolves; j++ {
-		a.wolves[j] = newAnimal("Wolf", j)
-		w.tiles[a.wolves[j].pos.x][a.wolves[j].pos.y].hasAnimal = true
-		w.tiles[a.wolves[j].pos.x][a.wolves[j].pos.y].animal = a.wolves[j]
+		a.Wolves[j] = newAnimal("Wolf", j)
+		w.Tiles[a.Wolves[j].Pos.X][a.Wolves[j].Pos.Y].HasAnimal = true
+		w.Tiles[a.Wolves[j].Pos.X][a.Wolves[j].Pos.Y].AnimalType = a.Wolves[j]
 	}
 	return a
 }
 
 func updateScreen() {
-	for i, ii := range w.tiles {
+	for i, ii := range w.Tiles {
 		for j := range ii {
-			if ii[j].hasAnimal {
-				(s).SetContent(i, j, rune(ii[j].animal.sym), []rune(""), ii[j].animal.sty)
+			if ii[j].HasAnimal {
+				(s).SetContent(i, j, rune(ii[j].AnimalType.Sym), []rune(""), ii[j].AnimalType.Sty)
 			} else {
-				(s).SetContent(i, j, rune(ii[j].terrainSym), []rune(""), ii[j].terrainStyle)
+				(s).SetContent(i, j, rune(ii[j].TerrainSym), []rune(""), ii[j].TerrainStyle)
 
 			}
 		}
@@ -75,8 +114,8 @@ func mainLoop() {
 	for t := 0; t < 5; t++ {
 		// Sheep Logic
 		var wg1 sync.WaitGroup
-		for i := range a.sheeps {
-			a.sheeps[i].sheepLogic(&wg1)
+		for i := range a.Sheeps {
+			sheepLogic(&a.Sheeps[i], &wg1)
 			wg1.Wait()
 		}
 		updateScreen()
@@ -84,25 +123,25 @@ func mainLoop() {
 	}
 }
 
-func (sheep *animal) sheepLogic(wg *sync.WaitGroup) {
+func sheepLogic(sheep *structs.Animal, wg *sync.WaitGroup) {
 	defer wg.Done()
 	wg.Add(1)
 
 	// herding
-	pointsOfSheepInHerd := make([]point, 0)
-	for i := range a.sheeps {
-		if a.sheeps[i].key == sheep.key {
+	pointsOfSheepInHerd := make([]structs.Point, 0)
+	for i := range a.Sheeps {
+		if a.Sheeps[i].Key == sheep.Key {
 			continue
 		}
-		pointsOfSheepInHerd = append(pointsOfSheepInHerd, a.sheeps[i].pos)
+		pointsOfSheepInHerd = append(pointsOfSheepInHerd, a.Sheeps[i].Pos)
 	}
 	moveToPosition := averagePoints(pointsOfSheepInHerd)
-	w.moveAnimal(*sheep, moveToPosition)
-	sheep.move(moveToPosition)
+	w.MoveAnimal(*sheep, moveToPosition)
+	sheep.Move(moveToPosition)
 	return
 }
 
-func getTileType(tileDesc string) (t tile) {
+func getTileType(tileDesc string) (t structs.Tile) {
 	// defining the description, symbols, and style of all tiles
 	if tileDesc == "Water" { // Terrain
 		t = newTile("Water", '~', getSetStyles("Water"), false)
@@ -118,7 +157,7 @@ func getTileType(tileDesc string) (t tile) {
 
 //Default styles. "Graphics" for everything to be printed to the screen
 func getSetStyles(tileDesc string) (s tcell.Style) {
-	// defining the colors and character styles for all terrains and animals
+	// defining the colors and character styles for all terrains and structs.Animals
 	var color tcell.Color
 	var bold bool
 	if tileDesc == "Water" { // Terrain
@@ -141,195 +180,70 @@ func getSetStyles(tileDesc string) (s tcell.Style) {
 	return
 }
 
-func averagePoints(s []point) (p point) {
+func averagePoints(s []structs.Point) (p structs.Point) {
 	var xvalues int = 0
 	var yvalues int = 0
 	var count int = 0
 	for i := range s {
-		xvalues += s[i].x
-		yvalues += s[i].y
+		xvalues += s[i].X
+		yvalues += s[i].Y
 		count++
 	}
-	p.x = xvalues / count
-	p.y = yvalues / count
-	return
-}
-
-// Structures
-type world struct {
-	// Make it concurrent friendly with mutex
-	mu *sync.Mutex
-
-	// Length and width sizes for the world
-	width  int
-	length int
-
-	// tiles stores all the terrain tiles as tile type
-	tiles [][]tile
-
-	//Storing terrain tile as points
-	landTile  []point
-	waterTile []point
-}
-
-type tile struct {
-	// Contains all information needed to print to screen
-	terrainDesc  string
-	terrainSym   rune
-	terrainStyle tcell.Style
-	hasAnimal    bool
-	animal       animal
-}
-
-type animals struct {
-	mu     *sync.Mutex
-	sheeps []animal
-	wolves []animal
-}
-
-type animal struct {
-	//path finding variables
-	toGo point
-
-	//descriptors
-	desc string
-	sym  rune
-	sty  tcell.Style
-
-	//position
-	pos point
-
-	//stats
-	health    int
-	hunger    int
-	speed     int
-	maxhealth int
-	maxhunger int
-
-	//states
-	fleeing bool
-	hunting bool
-	hungry  bool
-	horny   bool
-	dead    bool
-	rotten  bool
-
-	//index in slice of animals
-	key int
-}
-
-type point struct {
-	x int
-	y int
-}
-
-//Methods
-
-//generates initial terrain of the world
-func (w *world) generateTerrain() {
-	rand.Seed(time.Now().UnixNano())
-	p := perlin.NewPerlin(2, 2, 10, int64(rand.Int()))
-	(*w).tiles = make([][]tile, (*w).width)
-	// Initializing the tiles
-	for i := range (*w).tiles {
-		(*w).tiles[i] = make([]tile, (*w).length)
-	}
-
-	waterCount := 0
-	landCount := 0
-	for x := 0; x < (*w).width; x++ {
-		for y := 0; y < (*w).length; y++ {
-			terrain := p.Noise2D(float64(x)/10, float64(y)/10)
-			if terrain <= -0.12 {
-				(*w).tiles[x][y] = getTileType("Water")
-				wp := newPoint(x, y)
-				(*w).waterTile = append((*w).waterTile, wp)
-				waterCount++
-			} else if terrain > -0.12 && terrain < 0.3 {
-				(*w).tiles[x][y] = getTileType("Land")
-				lp := newPoint(x, y)
-				(*w).landTile = append((*w).landTile, lp)
-				landCount++
-			} else {
-				(*w).tiles[x][y] = getTileType("Mountain")
-				lp := newPoint(x, y)
-				(*w).landTile = append((*w).landTile, lp)
-				landCount++
-			}
-		}
-	}
-}
-
-//calculates the distance from one point to another
-func (a *point) distanceTo(b point) (c float32) {
-	c = float32(math.Sqrt(float64((b.x-a.x)^2) + (float64((b.y - a.y) ^ 2))))
-	return
-}
-
-//moves an animal from one point to the input point
-func (a *animal) move(p point) {
-	(*a).pos = p
-	return
-}
-
-//updates the w.Tiles array to reflect an animal has moved from current point to next point
-func (w *world) moveAnimal(a animal, p point) {
-	(*w).tiles[a.pos.x][a.pos.y].hasAnimal = false
-	(*w).tiles[p.x][p.y].hasAnimal = true
-	(*w).tiles[p.x][p.y].animal = a
+	p.X = xvalues / count
+	p.Y = yvalues / count
 	return
 }
 
 // Factory Functions
-func newWorld(x, y int) (w world) {
-	w.width = x
-	w.length = y
-	w.tiles = make([][]tile, x)
-	w.waterTile = make([]point, 0)
-	w.landTile = make([]point, 0)
+func newWorld(x, y int) (w structs.World) {
+	w.Width = x
+	w.Length = y
+	w.Tiles = make([][]structs.Tile, x)
+	w.WaterTile = make([]structs.Point, 0)
+	w.LandTile = make([]structs.Point, 0)
 	return
 }
 
-func newTile(desc string, sym rune, style tcell.Style, occ bool) tile {
-	var t tile
-	t.terrainDesc = desc
-	t.terrainSym = sym
-	t.terrainStyle = style
-	t.hasAnimal = occ
+func newTile(desc string, sym rune, style tcell.Style, occ bool) structs.Tile {
+	var t structs.Tile
+	t.TerrainDesc = desc
+	t.TerrainSym = sym
+	t.TerrainStyle = style
+	t.HasAnimal = occ
 	return t
 }
 
-func newPoint(x, y int) (p point) {
-	p.x = x
-	p.y = y
+func newPoint(x, y int) (p structs.Point) {
+	p.X = x
+	p.Y = y
 	return
 }
 
-func newAnimal(desc string, index int) (a animal) {
+func newAnimal(desc string, index int) (a structs.Animal) {
 	if desc == "Sheep" {
 		//set initial state
-		a.desc = "Sheep"
-		a.sym = 'S'
-		a.sty = getSetStyles("Sheep")
-		a.key = index
+		a.Desc = "Sheep"
+		a.Sym = 'S'
+		a.Sty = getSetStyles("Sheep")
+		a.Key = index
 
-		//set spawn point
-		r := rand.Intn(len(w.landTile))
-		a.pos = w.landTile[r]
+		//set spawn Point
+		r := rand.Intn(len(w.LandTile))
+		a.Pos = w.LandTile[r]
 
 	} else if desc == "Wolf" {
 		//set initial state
-		a.desc = "Wolf"
-		a.sym = 'W'
-		a.sty = getSetStyles("Wolf")
-		a.key = index
+		a.Desc = "Wolf"
+		a.Sym = 'W'
+		a.Sty = getSetStyles("Wolf")
+		a.Key = index
 
-		//set spawn point
-		r := rand.Intn(len(w.landTile))
-		a.pos = w.landTile[r]
+		//set spawn Point
+		r := rand.Intn(len(w.LandTile))
+		a.Pos = w.LandTile[r]
 
 	} else {
-		panic("Not a valid animal")
+		panic("Not a valid Animal")
 	}
 	return
 }
