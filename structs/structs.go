@@ -98,3 +98,102 @@ func (w *World) MoveAnimal(a Animal, p Point) {
 	(*w).Tiles[p.X][p.Y].AnimalType = a
 	return
 }
+
+func GetTileType(tileDesc string) (t Tile) {
+	// defining the description, symbols, and style of all tiles
+	if tileDesc == "Water" { // Terrain
+		t = NewTile("Water", '~', getSetStyles("Water"), false)
+	} else if tileDesc == "Land" {
+		t = NewTile("Land", '#', getSetStyles("Land"), false)
+	} else if tileDesc == "Mountain" {
+		t = NewTile("Mountain", 'M', getSetStyles("Mountain"), false)
+	} else {
+		t = NewTile("", '!', getSetStyles(""), false)
+	}
+	return
+}
+
+//Default styles. "Graphics" for everything to be printed to the screen
+func getSetStyles(tileDesc string) (s tcell.Style) {
+	// defining the colors and character styles for all terrains and Animals
+	var color tcell.Color
+	var bold bool
+	if tileDesc == "Water" { // Terrain
+		color = tcell.NewRGBColor(0, 153, 153)
+	} else if tileDesc == "Land" {
+		color = tcell.NewRGBColor(0, 153, 76)
+	} else if tileDesc == "Mountain" {
+		color = tcell.NewRGBColor(160, 160, 160)
+	} else if tileDesc == "Wolf" { // Animals
+		color = tcell.NewRGBColor(255, 51, 51)
+		bold = true
+	} else if tileDesc == "Sheep" {
+		color = tcell.NewRGBColor(255, 255, 255)
+		bold = true
+	} else {
+		color = tcell.NewRGBColor(255, 0, 0)
+	}
+	s = s.Foreground(color)
+	s = s.Bold(bold)
+	return
+}
+
+func AveragePoints(s []Point) (p Point) {
+	var xvalues int = 0
+	var yvalues int = 0
+	var count int = 0
+	for i := range s {
+		xvalues += s[i].X
+		yvalues += s[i].Y
+		count++
+	}
+	p.X = xvalues / count
+	p.Y = yvalues / count
+	return
+}
+
+// Factory Functions
+func NewWorld(x, y int) (w World) {
+	w.Width = x
+	w.Length = y
+	w.Tiles = make([][]Tile, x)
+	w.WaterTile = make([]Point, 0)
+	w.LandTile = make([]Point, 0)
+	return
+}
+
+func NewTile(desc string, sym rune, style tcell.Style, occ bool) Tile {
+	var t Tile
+	t.TerrainDesc = desc
+	t.TerrainSym = sym
+	t.TerrainStyle = style
+	t.HasAnimal = occ
+	return t
+}
+
+func NewPoint(x, y int) (p Point) {
+	p.X = x
+	p.Y = y
+	return
+}
+
+func NewAnimal(desc string, index int) (a Animal) {
+	if desc == "Sheep" {
+		//set initial state
+		a.Desc = "Sheep"
+		a.Sym = 'S'
+		a.Sty = getSetStyles("Sheep")
+		a.Key = index
+
+	} else if desc == "Wolf" {
+		//set initial state
+		a.Desc = "Wolf"
+		a.Sym = 'W'
+		a.Sty = getSetStyles("Wolf")
+		a.Key = index
+
+	} else {
+		panic("Not a valid Animal")
+	}
+	return
+}
