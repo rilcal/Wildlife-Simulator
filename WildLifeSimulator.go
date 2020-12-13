@@ -1,12 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/aquilax/go-perlin"
 	"github.com/gdamore/tcell"
+	"github.com/rilcal/Wildlife-Simulator/pathfinding"
 	"github.com/rilcal/Wildlife-Simulator/structs"
 )
 
@@ -31,7 +32,7 @@ func generateInitialVariables() {
 	var err error
 	s, err = tcell.NewScreen()
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 	s.Init()
 	x, y := s.Size()
@@ -82,6 +83,7 @@ func populateWorld(numSheep int, numWolves int) structs.Animals {
 	a.Sheeps = make([]structs.Animal, numSheep)
 	for i := 0; i < numSheep; i++ {
 		a.Sheeps[i] = structs.NewAnimal("Sheep", i)
+		setLandSpawn(&a.Sheeps[i])
 		w.Tiles[a.Sheeps[i].Pos.X][a.Sheeps[i].Pos.Y].HasAnimal = true
 		w.Tiles[a.Sheeps[i].Pos.X][a.Sheeps[i].Pos.Y].AnimalType = a.Sheeps[i]
 	}
@@ -90,6 +92,7 @@ func populateWorld(numSheep int, numWolves int) structs.Animals {
 	a.Wolves = make([]structs.Animal, numWolves)
 	for j := 0; j < numWolves; j++ {
 		a.Wolves[j] = structs.NewAnimal("Wolf", j)
+		setLandSpawn(&a.Wolves[j])
 		w.Tiles[a.Wolves[j].Pos.X][a.Wolves[j].Pos.Y].HasAnimal = true
 		w.Tiles[a.Wolves[j].Pos.X][a.Wolves[j].Pos.Y].AnimalType = a.Wolves[j]
 	}
@@ -107,36 +110,41 @@ func updateScreen() {
 			}
 		}
 	}
-	(s).Show()
+	s.Show()
 }
 
 func mainLoop() {
 	for t := 0; t < 5; t++ {
 		// Sheep Logic
-		var wg1 sync.WaitGroup
 		for i := range a.Sheeps {
-			sheepLogic(&a.Sheeps[i], &wg1)
-			wg1.Wait()
+			sheepLogic(&a.Sheeps[i])
 		}
 		updateScreen()
 		time.Sleep(time.Second * 1)
 	}
 }
 
-func sheepLogic(sheep *structs.Animal, wg *sync.WaitGroup) {
-	defer wg.Done()
-	wg.Add(1)
+func sheepLogic(sheep *structs.Animal) {
 
 	// herding
 	pointsOfSheepInHerd := make([]structs.Point, 0)
 	for i := range a.Sheeps {
-		if a.Sheeps[i].Key == sheep.Key {
+		if a.Sheeps[i].Key == (*sheep).Key {
 			continue
 		}
 		pointsOfSheepInHerd = append(pointsOfSheepInHerd, a.Sheeps[i].Pos)
 	}
 	moveToPosition := structs.AveragePoints(pointsOfSheepInHerd)
-	w.MoveAnimal(*sheep, moveToPosition)
-	sheep.Move(moveToPosition)
+	(*sheep).ToGo = moveToPosition
+	(*sheep).ToGoPath = pathfinding.Astar((*sheep).Pos, (*sheep).ToGo, a.SheepMaze)
+	fmt.Println((*sheep).ToGoPath)
+	w.MoveAnimal(*sheep, (*sheep).ToGoPath[0])
+	(*sheep).Move((*sheep).ToGoPath[0])
+	(*sheep).ToGoPath = (*sheep).ToGoPath[:len((*sheep).ToGoPath)-1]
+	return
+}
+
+func setLandSpawn(a *structs.Animal) {
+	(*a).Pos = w.LandTile[rand.Intn(len(w.LandTile))]
 	return
 }

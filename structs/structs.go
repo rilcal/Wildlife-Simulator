@@ -36,15 +36,18 @@ type Tile struct {
 
 // Animals contains all animals present within the world
 type Animals struct {
-	Mu     *sync.Mutex
-	Sheeps []Animal
-	Wolves []Animal
+	Mu        *sync.Mutex
+	Sheeps    []Animal
+	SheepMaze [][]int
+	Wolves    []Animal
+	WolfMaze  [][]int
 }
 
 // Animal stores all information related to an Animal in the Animals structure
 type Animal struct {
 	//path finding variables
-	ToGo Point
+	ToGo     Point
+	ToGoPath []Point
 
 	//descriptors
 	Desc string
@@ -150,6 +153,36 @@ func AveragePoints(s []Point) (p Point) {
 	p.X = xvalues / count
 	p.Y = yvalues / count
 	return
+}
+
+func GenerateMazes(w World) ([][]int, [][]int) {
+	xlen := len(w.Tiles)
+	ylen := len(w.Tiles[0])
+	sheepMaze := make([][]int, xlen)
+	wolfMaze := make([][]int, xlen)
+
+	for i := 0; i < xlen; i++ {
+		sheepMaze[i] = make([]int, ylen)
+		wolfMaze[i] = make([]int, ylen)
+	}
+	for x := 0; x < xlen; x++ {
+		for y := 0; y < ylen; y++ {
+			if w.Tiles[x][y].TerrainDesc == "Water" {
+				sheepMaze[x][y] = 5
+				wolfMaze[x][y] = 5
+			} else if w.Tiles[x][y].TerrainDesc == "Land" {
+				sheepMaze[x][y] = 1
+				wolfMaze[x][y] = 1
+			} else if w.Tiles[x][y].TerrainDesc == "Mountain" {
+				sheepMaze[x][y] = 2
+				wolfMaze[x][y] = 2
+			} else {
+				sheepMaze[x][y] = -1
+				wolfMaze[x][y] = -1
+			}
+		}
+	}
+	return sheepMaze, wolfMaze
 }
 
 // Factory Functions
