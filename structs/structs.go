@@ -32,6 +32,7 @@ type Tile struct {
 	TerrainStyle tcell.Style
 	HasAnimal    bool
 	AnimalType   Animal
+	IslandNumber int
 }
 
 // Animals contains all animals present within the world
@@ -84,13 +85,7 @@ type Point struct {
 
 // DistanceTo calculates the distance from one Point to another
 func (a *Point) DistanceTo(b Point) (c float32) {
-	c = float32(math.Sqrt(float64((b.X-a.X)^2) + (float64((b.Y - a.Y) ^ 2))))
-	return
-}
-
-//Move moves an Animal from one Point to the input Point
-func (a *Animal) Move(p Point) {
-	(*a).Pos = p
+	c = float32(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
 	return
 }
 

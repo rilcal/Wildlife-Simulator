@@ -17,7 +17,7 @@ Animals:------------------------------------------------------------------------
 []Add sheep behavior
   [] Movement
     [X]Basic Movement
-    []Pathfinding (A*)
+    [X]Pathfinding (A*)
     []Speed factor
   []Fleeing
   []Herding

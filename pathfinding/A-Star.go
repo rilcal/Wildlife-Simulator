@@ -8,102 +8,70 @@ import (
 
 // Astar follows the a* search algorithm to quickly generate the fastest path to a given target point from a given start point in a matrix of given movement matrix
 func Astar(start structs.Point, target structs.Point, matrix [][]int) (path []structs.Point) {
-	xlen := len(matrix) - 1
-	ylen := len(matrix[1]) - 1
+	xlen := len(matrix)
+	ylen := len(matrix[1])
 
 	var current node
 	current.pos = start
 	current.g = 0
-	current.pathto = make([]structs.Point, 0, 25)
+	current.pathto = make([]structs.Point, 0, xlen*ylen)
+	current.pathto = append(current.pathto, start)
+	current.parentPos = start
 
 	openList := make([]node, 0, xlen*ylen)
 	openList = append(openList, current)
+	closedList := make([]node, 0, xlen*ylen)
 
 	for i := 1; i < xlen*ylen*10; i++ {
 		if current.pos == target {
-			path = current.pathto
+			tmp := make([]structs.Point, len(current.pathto))
+			copy(tmp, current.pathto)
+			pth := append(tmp, current.pos)
+			path = pth
 			return
 		}
-		j := 0
 
 		//Generate neighbors slice
-		neighbors := make([]node, 0, 8)
-		//top left (-1, -1)
-		if (current.pos.X-1) < xlen && (current.pos.X-1) >= 0 && (current.pos.Y-1) < ylen && (current.pos.Y-1) >= 0 {
-			p := structs.NewPoint(current.parentPos.X-1, current.pos.Y-1)
-			g := current.g + matrix[current.parentPos.X-1][current.pos.Y-1]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
+		var neighbors []node
+		var p structs.Point
+		var g int
 
-		//top mid (0, -1)
-		if (current.pos.X) < xlen && (current.pos.X) >= 0 && (current.pos.Y-1) < ylen && (current.pos.Y-1) >= 0 {
-			p := structs.NewPoint(current.parentPos.X, current.pos.Y-1)
-			g := current.g + matrix[current.parentPos.X][current.pos.Y-1]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
+		for x := -1; x <= 1; x++ {
+			for y := -1; y <= 1; y++ {
+				if x == 0 && y == 0 {
+					continue
+				}
 
-		//top right (+1, -1)
-		if (current.pos.X+1) < xlen && (current.pos.X+1) >= 0 && (current.pos.Y-1) < ylen && (current.pos.Y-1) >= 0 {
-			p := structs.NewPoint(current.parentPos.X+1, current.pos.Y-1)
-			g := current.g + matrix[current.parentPos.X+1][current.pos.Y-1]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
+				if (current.pos.X+x) < xlen && (current.pos.X+x) >= 0 && (current.pos.Y+y) < ylen && (current.pos.Y+y) >= 0 {
+					p = structs.NewPoint(current.pos.X+x, current.pos.Y+y)
 
-		//mid left (-1, 0)
-		if (current.pos.X-1) < xlen && (current.pos.X-1) >= 0 && (current.pos.Y) < ylen && (current.pos.Y) >= 0 {
-			p := structs.NewPoint(current.parentPos.X-1, current.pos.Y)
-			g := current.g + matrix[current.parentPos.X-1][current.pos.Y]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
-
-		//mid right (+1, 0)
-		if (current.pos.X+1) < xlen && (current.pos.X+1) >= 0 && (current.pos.Y) < ylen && (current.pos.Y) >= 0 {
-			p := structs.NewPoint(current.parentPos.X+1, current.pos.Y)
-			g := current.g + matrix[current.parentPos.X+1][current.pos.Y]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
-
-		//botm left (-1, +1)
-		if (current.pos.X-1) < xlen && (current.pos.X-1) >= 0 && (current.pos.Y+1) < ylen && (current.pos.Y+1) >= 0 {
-			p := structs.NewPoint(current.parentPos.X-1, current.pos.Y+1)
-			g := current.g + matrix[current.parentPos.X-1][current.pos.Y+1]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
-
-		//botm mid (0, +1)
-		if (current.pos.X) < xlen && (current.pos.X) >= 0 && (current.pos.Y+1) < ylen && (current.pos.Y+1) >= 0 {
-			p := structs.NewPoint(current.parentPos.X, current.pos.Y+1)
-			g := current.g + matrix[current.parentPos.X][current.pos.Y+1]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
-		}
-
-		//botm right (+1, +1)
-		if (current.pos.X+1) < xlen && (current.pos.X+1) >= 0 && (current.pos.Y+1) < ylen && (current.pos.Y+1) >= 0 {
-			p := structs.NewPoint(current.parentPos.X+1, current.pos.Y+1)
-			g := current.g + matrix[current.parentPos.X+1][current.pos.Y+1]
-			neighbors[j] = newNode(p, current.pos, g, append(current.pathto, p))
-			j++
+					if isIn(p, openList) || isIn(p, closedList) {
+						continue
+					}
+					var pathToCurrent []structs.Point
+					pathToParent := make([]structs.Point, len(current.pathto))
+					g = current.g + matrix[current.pos.X+x][current.pos.Y+y]
+					copy(pathToParent, current.pathto)
+					pathToCurrent = append(pathToParent, p)
+					neighborNode := newNode(p, current.pos, g, pathToCurrent)
+					neighbors = append(neighbors, neighborNode)
+				}
+			}
 		}
 
 		//Loop through neighbors, calculate f score, and add to open list
 		for i := range neighbors {
-			openList = append(openList, neighbors[i])
-			h := math.Min(math.Abs(float64(neighbors[i].pos.X-target.X)), math.Abs(float64(neighbors[i].pos.Y-target.Y)))
+			h := math.Max(math.Abs(float64(neighbors[i].pos.X-target.X)), math.Abs(float64(neighbors[i].pos.Y-target.Y)))
 			neighbors[i].h = int(h)
 			neighbors[i].f = neighbors[i].g + neighbors[i].h
+			openList = append(openList, neighbors[i])
 		}
 
 		//remove current from open list
 		_ = findAndRemoveElement(current, &openList)
+		closedList = append(closedList, current)
 
-		//find min
+		//find min f
 		_, minInd := findMinF(&openList)
 		current = openList[minInd]
 	}
@@ -127,16 +95,14 @@ func newNode(pos structs.Point, par structs.Point, g int, parPath []structs.Poin
 	return
 }
 
-func isIn(n node, slice []structs.Point) (b bool, ind int) {
+func isIn(n structs.Point, slice []node) (b bool) {
 	for i := range slice {
-		if n.pos == slice[i] {
+		if n == slice[i].pos {
 			b = true
-			ind = i
 			return
 		}
 	}
 	b = false
-	ind = 0
 	return
 }
 
