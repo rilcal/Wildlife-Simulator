@@ -39,7 +39,6 @@ func generateInitialVariables() {
 	s.Init()
 	x, y := s.Size()
 	w = structs.NewWorld(x-1, y-1)
-
 	generateTerrain()
 	return
 }
@@ -48,33 +47,33 @@ func generateInitialVariables() {
 func generateTerrain() {
 	rand.Seed(time.Now().UnixNano())
 	p := perlin.NewPerlin(2, 2, 10, int64(rand.Int()))
+	w.Tiles = make([][]structs.Tile, w.Width)
+	// Initializing the tiles
+	for i := range w.Tiles {
+		w.Tiles[i] = make([]structs.Tile, w.Length)
+	}
 
 	waterCount := 0
 	landCount := 0
 	for x := 0; x < w.Width; x++ {
 		for y := 0; y < w.Length; y++ {
-			location := structs.NewPoint(x, y)
 			terrain := p.Noise2D(float64(x)/10, float64(y)/10)
-			tile := w.Tiles[location]
-
 			if terrain <= -0.12 {
-				tile = structs.GetTileType("Water")
+				w.Tiles[x][y] = structs.GetTileType("Water")
 				wp := structs.NewPoint(x, y)
 				w.WaterTile = append(w.WaterTile, wp)
 				waterCount++
 			} else if terrain > -0.12 && terrain < 0.3 {
-				tile = structs.GetTileType("Land")
+				w.Tiles[x][y] = structs.GetTileType("Land")
 				lp := structs.NewPoint(x, y)
 				w.LandTile = append(w.LandTile, lp)
 				landCount++
 			} else {
-				tile = structs.GetTileType("Mountain")
+				w.Tiles[x][y] = structs.GetTileType("Mountain")
 				lp := structs.NewPoint(x, y)
 				w.LandTile = append(w.LandTile, lp)
 				landCount++
 			}
-
-			w.Tiles[location] = tile
 		}
 	}
 
@@ -85,8 +84,8 @@ func generateTerrain() {
 	tempLandTiles := make([]structs.Point, len(w.LandTile))
 	var toLookAtPoints []structs.Point
 	copy(tempLandTiles, w.LandTile)
-	xlen := w.Width
-	ylen := w.Length
+	xlen := len(w.Tiles)
+	ylen := len(w.Tiles[0])
 
 	for true {
 		if len(toLookAtPoints) == 0 && len(tempLandTiles) != 0 {
@@ -99,10 +98,8 @@ func generateTerrain() {
 		}
 		xcoor := currentPoint.X
 		ycoor := currentPoint.Y
-		location := structs.NewPoint(xcoor, ycoor)
-		tile := w.Tiles[location]
-		tile.IslandNumber = currentIslandCount
-		w.Tiles[location] = tile
+		w.Tiles[xcoor][ycoor].IslandNumber = currentIslandCount
+		lookedAtPoints = append(lookedAtPoints, currentPoint)
 
 		for x := -1; x < 2; x++ {
 			for y := -1; y < 2; y++ {
@@ -116,7 +113,7 @@ func generateTerrain() {
 					continue
 				} else if neighborX < 0 || neighborX >= xlen || neighborY < 0 || neighborY >= ylen {
 					continue
-				} else if w.Tiles[neighborPoint].IslandNumber != 0 {
+				} else if w.Tiles[neighborX][neighborY].IslandNumber != 0 {
 					continue
 				} else if beenLookedAt {
 					continue
@@ -140,18 +137,8 @@ func populateWorld(numSheep int, numWolves int) {
 	for i := 0; i < numSheep; i++ {
 		a.Sheeps[i] = structs.NewAnimal("Sheep", i)
 		setLandSpawn(&a.Sheeps[i])
-
-		var sheepLoc structs.Point
-		sheepLoc.X = a.Sheeps[i].Pos.X
-		sheepLoc.Y = a.Sheeps[i].Pos.Y
-		tile, ok := w.Tiles[sheepLoc]
-		if ok {
-			tile.HasAnimal = true
-			tile.AnimalType = a.Sheeps[i]
-			w.Tiles[sheepLoc] = tile
-		} else {
-			panic("Something wrong with the sheep spawn")
-		}
+		w.Tiles[a.Sheeps[i].Pos.X][a.Sheeps[i].Pos.Y].HasAnimal = true
+		w.Tiles[a.Sheeps[i].Pos.X][a.Sheeps[i].Pos.Y].AnimalType = a.Sheeps[i]
 	}
 
 	//Generate wolf population
@@ -159,51 +146,27 @@ func populateWorld(numSheep int, numWolves int) {
 	for j := 0; j < numWolves; j++ {
 		a.Wolves[j] = structs.NewAnimal("Wolf", j)
 		setLandSpawn(&a.Wolves[j])
-
-		var wolfLoc structs.Point
-		wolfLoc.X = a.Wolves[j].Pos.X
-		wolfLoc.Y = a.Wolves[j].Pos.Y
-		tile, ok := w.Tiles[wolfLoc]
-		if ok {
-			tile.HasAnimal = true
-			tile.AnimalType = a.Wolves[j]
-			w.Tiles[wolfLoc] = tile
-		} else {
-			panic("Something wrong with the sheep spawn")
-		}
+		w.Tiles[a.Wolves[j].Pos.X][a.Wolves[j].Pos.Y].HasAnimal = true
+		w.Tiles[a.Wolves[j].Pos.X][a.Wolves[j].Pos.Y].AnimalType = a.Wolves[j]
 	}
 	return
 }
 
 func updateScreen() {
-
-	for point := range w.Tiles {
-		tile, ok := w.Tiles[point]
-		if ok {
-			if tile.HasAnimal {
-				s.SetContent(point.X, point.Y, rune(tile.AnimalType.Sym), []rune(""), tile.AnimalType.Sty)
+	for i, ii := range w.Tiles {
+		for j := range ii {
+			if ii[j].HasAnimal {
+				(s).SetContent(i, j, rune(ii[j].AnimalType.Sym), []rune(""), ii[j].AnimalType.Sty)
 			} else {
-				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tile.TerrainStyle)
-			}
+				//rrune := rune(ii[j].IslandNumber)
+				//x := []rune{'0', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+				//rrune := x[ii[j].IslandNumber]
+				//(s).SetContent(i, j, rune(rrune), []rune(""), ii[j].TerrainStyle)
+				(s).SetContent(i, j, rune(ii[j].TerrainSym), []rune(""), ii[j].TerrainStyle)
 
-		} else {
-			panic("Something wrong in updateScreen")
+			}
 		}
 	}
-	// for i, ii := range w.Tiles {
-	// 	for j := range ii {
-	// 		if ii[j].HasAnimal {
-	// 			(s).SetContent(i, j, rune(ii[j].AnimalType.Sym), []rune(""), ii[j].AnimalType.Sty)
-	// 		} else {
-	// 			//rrune := rune(ii[j].IslandNumber)
-	// 			//x := []rune{'0', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
-	// 			//rrune := x[ii[j].IslandNumber]
-	// 			//(s).SetContent(i, j, rune(rrune), []rune(""), ii[j].TerrainStyle)
-	// 			(s).SetContent(i, j, rune(ii[j].TerrainSym), []rune(""), ii[j].TerrainStyle)
-
-	// 		}
-	// 	}
-	// }
 	s.Show()
 	return
 }
@@ -211,6 +174,7 @@ func updateScreen() {
 func mainLoop() {
 	for t := 0; t < 1000; t++ {
 		// Sheep Logic
+
 		sheepLogic()
 		updateScreen()
 		time.Sleep(time.Millisecond * 500)
@@ -249,18 +213,9 @@ func setLandSpawn(a *structs.Animal) {
 }
 
 func moveAnimal(a structs.Animal, p structs.Point) {
-	tile, ok := w.Tiles[a.Pos]
-	if ok {
-		tile.HasAnimal = false
-		w.Tiles[a.Pos] = tile
-	}
-
-	tile, ok = w.Tiles[p]
-	if ok {
-		tile.HasAnimal = true
-		tile.AnimalType = a
-		w.Tiles[p] = tile
-	}
+	w.Tiles[a.Pos.X][a.Pos.Y].HasAnimal = false
+	w.Tiles[p.X][p.Y].HasAnimal = true
+	w.Tiles[p.X][p.Y].AnimalType = a
 	return
 }
 
