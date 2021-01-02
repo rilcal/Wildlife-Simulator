@@ -17,7 +17,7 @@ type World struct {
 	Length int
 
 	// tiles stores all the terrain tiles as Tile type
-	Tiles [][]Tile
+	Tiles map[Point]Tile
 
 	//Storing terrain Tile as points
 	LandTile  []Point
@@ -91,9 +91,16 @@ func (a *Point) DistanceTo(b Point) (c float32) {
 
 //MoveAnimal updates the w.Tiles array to reflect an Animal has moved from current Point to next Point
 func (w *World) MoveAnimal(a Animal, p Point) {
-	(*w).Tiles[a.Pos.X][a.Pos.Y].HasAnimal = false
-	(*w).Tiles[p.X][p.Y].HasAnimal = true
-	(*w).Tiles[p.X][p.Y].AnimalType = a
+	if pastTile, ok := w.Tiles[a.Pos]; ok {
+		pastTile.HasAnimal = false
+		w.Tiles[a.Pos] = pastTile
+	}
+
+	if currentTile, ok := w.Tiles[p]; ok {
+		currentTile.HasAnimal = true
+		currentTile.AnimalType = a
+		w.Tiles[p] = currentTile
+	}
 	return
 }
 
@@ -151,8 +158,8 @@ func AveragePoints(s []Point) (p Point) {
 }
 
 func GenerateMazes(w World) ([][]int, [][]int) {
-	xlen := len(w.Tiles)
-	ylen := len(w.Tiles[0])
+	xlen := w.Width
+	ylen := w.Length
 	sheepMaze := make([][]int, xlen)
 	wolfMaze := make([][]int, xlen)
 
@@ -162,13 +169,14 @@ func GenerateMazes(w World) ([][]int, [][]int) {
 	}
 	for x := 0; x < xlen; x++ {
 		for y := 0; y < ylen; y++ {
-			if w.Tiles[x][y].TerrainDesc == "Water" {
+			location := NewPoint(x, y)
+			if w.Tiles[location].TerrainDesc == "Water" {
 				sheepMaze[x][y] = 5
 				wolfMaze[x][y] = 5
-			} else if w.Tiles[x][y].TerrainDesc == "Land" {
+			} else if w.Tiles[location].TerrainDesc == "Land" {
 				sheepMaze[x][y] = 1
 				wolfMaze[x][y] = 1
-			} else if w.Tiles[x][y].TerrainDesc == "Mountain" {
+			} else if w.Tiles[location].TerrainDesc == "Mountain" {
 				sheepMaze[x][y] = 2
 				wolfMaze[x][y] = 2
 			} else {
@@ -184,7 +192,7 @@ func GenerateMazes(w World) ([][]int, [][]int) {
 func NewWorld(x, y int) (w World) {
 	w.Width = x
 	w.Length = y
-	w.Tiles = make([][]Tile, x)
+	w.Tiles = make(map[Point]Tile)
 	w.WaterTile = make([]Point, 0)
 	w.LandTile = make([]Point, 0)
 	return
