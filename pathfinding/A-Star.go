@@ -27,7 +27,7 @@ func Astar(start structs.Point, target structs.Point, matrix [][]int) (path []st
 			tmp := make([]structs.Point, len(current.pathto))
 			copy(tmp, current.pathto)
 			pth := append(tmp, current.pos)
-			path = pth
+			path = pth[1:]
 			return
 		}
 

@@ -64,6 +64,7 @@ type Animal struct {
 	Speed     int
 	Maxhealth int
 	Maxhunger int
+	Sight int
 
 	//states
 	Fleeing bool
@@ -171,8 +172,8 @@ func GenerateMazes(w World) ([][]int, [][]int) {
 		for y := 0; y < ylen; y++ {
 			location := NewPoint(x, y)
 			if w.Tiles[location].TerrainDesc == "Water" {
-				sheepMaze[x][y] = 5
-				wolfMaze[x][y] = 5
+				sheepMaze[x][y] = 555
+				wolfMaze[x][y] = 555
 			} else if w.Tiles[location].TerrainDesc == "Land" {
 				sheepMaze[x][y] = 1
 				wolfMaze[x][y] = 1
@@ -187,6 +188,8 @@ func GenerateMazes(w World) ([][]int, [][]int) {
 	}
 	return sheepMaze, wolfMaze
 }
+
+
 
 // Factory Functions
 func NewWorld(x, y int) (w World) {
