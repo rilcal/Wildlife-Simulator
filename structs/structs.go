@@ -58,9 +58,14 @@ type Animal struct {
 	//position
 	Pos Point
 
+	//state counters
+	Health	int
+	Hunger int
+	Horniness int
+	DeadCount int
+	SpeedCount int
+	
 	//stats
-	Health    int
-	Hunger    int
 	Speed     int
 	Maxhealth int
 	Maxhunger int
@@ -86,7 +91,9 @@ type Point struct {
 
 // DistanceTo calculates the distance from one Point to another
 func (a *Point) DistanceTo(b Point) (c float32) {
-	c = float32(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
+	X := math.Abs(float64(a.X)-float64(b.X))
+	Y := math.Abs(float64(a.Y)-float64(b.Y))
+	c = float32(math.Max(X,Y))
 	return
 }
 
@@ -102,25 +109,24 @@ func (w *World) MoveAnimal(a Animal, p Point) {
 		currentTile.AnimalType = a
 		w.Tiles[p] = currentTile
 	}
-	return
 }
 
 func GetTileType(tileDesc string) (t Tile) {
 	// defining the description, symbols, and style of all tiles
 	if tileDesc == "Water" { // Terrain
-		t = NewTile("Water", '~', getSetStyles("Water"), false)
+		t = NewTile("Water", '~', GetSetStyles("Water"), false)
 	} else if tileDesc == "Land" {
-		t = NewTile("Land", '#', getSetStyles("Land"), false)
+		t = NewTile("Land", '#', GetSetStyles("Land"), false)
 	} else if tileDesc == "Mountain" {
-		t = NewTile("Mountain", 'M', getSetStyles("Mountain"), false)
+		t = NewTile("Mountain", 'M', GetSetStyles("Mountain"), false)
 	} else {
-		t = NewTile("", '!', getSetStyles(""), false)
+		t = NewTile("", '!', GetSetStyles(""), false)
 	}
 	return
 }
 
 //Default styles. "Graphics" for everything to be printed to the screen
-func getSetStyles(tileDesc string) (s tcell.Style) {
+func GetSetStyles(tileDesc string) (s tcell.Style) {
 	// defining the colors and character styles for all terrains and Animals
 	var color tcell.Color
 	var bold bool
@@ -130,11 +136,19 @@ func getSetStyles(tileDesc string) (s tcell.Style) {
 		color = tcell.NewRGBColor(0, 153, 76)
 	} else if tileDesc == "Mountain" {
 		color = tcell.NewRGBColor(160, 160, 160)
+	} else if tileDesc == "DeadGrass" {
+		color = tcell.NewRGBColor(192, 204, 82)
 	} else if tileDesc == "Wolf" { // Animals
 		color = tcell.NewRGBColor(255, 51, 51)
 		bold = true
 	} else if tileDesc == "Sheep" {
 		color = tcell.NewRGBColor(255, 255, 255)
+		bold = true
+	} else if tileDesc == "DeadSheep" {
+		color = tcell.NewRGBColor(225, 185, 185)
+		bold = true
+	} else if tileDesc == "DeadWolf" {
+		color = tcell.NewRGBColor(185, 225, 185)
 		bold = true
 	} else {
 		color = tcell.NewRGBColor(255, 0, 0)
@@ -172,8 +186,8 @@ func GenerateMazes(w World) ([][]int, [][]int) {
 		for y := 0; y < ylen; y++ {
 			location := NewPoint(x, y)
 			if w.Tiles[location].TerrainDesc == "Water" {
-				sheepMaze[x][y] = 555
-				wolfMaze[x][y] = 555
+				sheepMaze[x][y] = 999
+				wolfMaze[x][y] = 999
 			} else if w.Tiles[location].TerrainDesc == "Land" {
 				sheepMaze[x][y] = 1
 				wolfMaze[x][y] = 1
@@ -188,7 +202,6 @@ func GenerateMazes(w World) ([][]int, [][]int) {
 	}
 	return sheepMaze, wolfMaze
 }
-
 
 
 // Factory Functions
@@ -221,15 +234,27 @@ func NewAnimal(desc string, index int) (a Animal) {
 		//set initial state
 		a.Desc = "Sheep"
 		a.Sym = 'S'
-		a.Sty = getSetStyles("Sheep")
+		a.Sty = GetSetStyles("Sheep")
 		a.Key = index
+		a.Sight = 7
+		a.Speed = 2
+		a.SpeedCount = 3
+		a.Health = 25
+		a.Hunger = 5
+		a.Dead = false
 
 	} else if desc == "Wolf" {
 		//set initial state
 		a.Desc = "Wolf"
 		a.Sym = 'W'
-		a.Sty = getSetStyles("Wolf")
+		a.Sty = GetSetStyles("Wolf")
 		a.Key = index
+		a.Sight = 20
+		a.Speed = 2
+		a.Speed = 1
+		a.Dead = false
+		a.Hunger = 20
+		a.Health = 100
 
 	} else {
 		panic("Not a valid Animal")
