@@ -77,7 +77,6 @@ type Animal struct {
 	Hungry  bool
 	Horny   bool
 	Dead    bool
-	Rotten  bool
 
 	//index in slice of animals
 	Key int
@@ -237,11 +236,12 @@ func NewAnimal(desc string, index int) (a Animal) {
 		a.Sty = GetSetStyles("Sheep")
 		a.Key = index
 		a.Sight = 7
-		a.Speed = 2
+		a.Speed = 3
 		a.SpeedCount = 3
 		a.Health = 25
-		a.Hunger = 5
+		a.Hunger = 40
 		a.Dead = false
+		a.Horniness = 15
 
 	} else if desc == "Wolf" {
 		//set initial state
@@ -251,9 +251,8 @@ func NewAnimal(desc string, index int) (a Animal) {
 		a.Key = index
 		a.Sight = 20
 		a.Speed = 2
-		a.Speed = 1
 		a.Dead = false
-		a.Hunger = 20
+		a.Hunger = 55
 		a.Health = 100
 
 	} else {
