@@ -21,27 +21,26 @@ var a structs.Animals
 // MAIN FUNCTION
 func main() {
 	generateInitialVariables()
-	populateWorld(30, 5)
+	populateWorld(30, 2)
 	a.SheepMaze, a.WolfMaze = structs.GenerateMazes(w)
 	defer s.Fini() //***
 	rand.Seed(time.Now().UnixNano())
 	updateScreen() //***
 	time.Sleep(time.Second * 1)
 	mainLoop()
-	time.Sleep(time.Second * 15)
 }
 
 // Functions
 func generateInitialVariables() {
 	var err error
-	s, err = tcell.NewTerminfoScreen() //***
+	s, err = tcell.NewScreen() //***
 	if err != nil {
 		fmt.Println(err)
 	}
 	s.Init() //***
 	w = structs.NewWorld(40, 40)
-	x, y := s.Size() //***
-	w = structs.NewWorld(x-1, y-1) //***
+	//x, y := s.Size()               //***
+	//w = structs.NewWorld(x-1, y-1) //***
 	generateTerrain()
 }
 
@@ -193,12 +192,11 @@ func updateScreen() {
 }
 
 func mainLoop() {
-	for t := 0; t < 1000; t++ {
-		// Sheep Logic
+	for len(a.Sheeps) > 0 || len(a.Wolves) > 0 {
 		sheepLogic()
 		wolfLogic()
 		updateScreen() //***
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * 50)
 	}
 }
 
@@ -207,14 +205,14 @@ func sheepLogic() {
 	for i := 0; i < len(a.Sheeps); i++ {
 		if a.Sheeps[i].Dead && a.Sheeps[i].DeadCount > 50 {
 			removeAnimal(&a.Sheeps[i])
-		} else if a.Sheeps[i].Dead && a.Sheeps[i].Health < 50{
+		} else if a.Sheeps[i].Dead && a.Sheeps[i].Health < 50 {
 			removeAnimal(&a.Sheeps[i])
-		} else if a.Sheeps[i].Dead{
+		} else if a.Sheeps[i].Dead {
 			updateSheepState(&a.Sheeps[i])
 		} else {
 			if a.Sheeps[i].Fleeing {
 				lookForWolves(&a.Sheeps[i])
-			} else if a.Sheeps[i].Hungry  {
+			} else if a.Sheeps[i].Hungry {
 				eat(&a.Sheeps[i])
 			} else if a.Sheeps[i].Horny {
 				breed(&a.Sheeps[i])
@@ -232,20 +230,20 @@ func sheepLogic() {
 	}
 }
 
-func breed(ani *structs.Animal){
-	if ani.Desc == "Sheep"{
+func breed(ani *structs.Animal) {
+	if ani.Desc == "Sheep" {
 		var closestHornySheep *structs.Animal
 		var closestDist int = 10000
 		var dist int
 		var found bool = false
 		var otherSheep *structs.Animal
-		for i := range a.Sheeps{
+		for i := range a.Sheeps {
 			otherSheep = &a.Sheeps[i]
 			if !cmp.Equal(*ani, *otherSheep) {
 				if otherSheep.Horny && !otherSheep.Dead {
 					dist = int(ani.Pos.DistanceTo(otherSheep.Pos))
-					if dist <= ani.Sight && w.Tiles[ani.Pos].IslandNumber == w.Tiles[otherSheep.Pos].IslandNumber{
-						 if dist < closestDist {
+					if dist <= ani.Sight && w.Tiles[ani.Pos].IslandNumber == w.Tiles[otherSheep.Pos].IslandNumber {
+						if dist < closestDist {
 							found = true
 							closestHornySheep = otherSheep
 							closestDist = dist
@@ -270,19 +268,19 @@ func breed(ani *structs.Animal){
 			herd(ani)
 		}
 
-	} else if ani.Desc == "Wolf"{
+	} else if ani.Desc == "Wolf" {
 		var closestHornyWolf *structs.Animal
 		var closestDist int = 10000
 		var dist int
 		var found bool = false
 		var otherWolf *structs.Animal
-		for i := range a.Wolves{
+		for i := range a.Wolves {
 			otherWolf = &a.Wolves[i]
 			if !cmp.Equal(*ani, *otherWolf) {
 				if otherWolf.Horny && !otherWolf.Dead {
 					dist = int(ani.Pos.DistanceTo(otherWolf.Pos))
-					if dist <= ani.Sight && w.Tiles[ani.Pos].IslandNumber == w.Tiles[otherWolf.Pos].IslandNumber{
-						 if dist < closestDist {
+					if dist <= ani.Sight && w.Tiles[ani.Pos].IslandNumber == w.Tiles[otherWolf.Pos].IslandNumber {
+						if dist < closestDist {
 							found = true
 							closestHornyWolf = otherWolf
 							closestDist = dist
@@ -309,11 +307,11 @@ func breed(ani *structs.Animal){
 	}
 }
 
-func spawnBabyAni(ani1, ani2 *structs.Animal){
+func spawnBabyAni(ani1, ani2 *structs.Animal) {
 	var loc structs.Point
 	for x := -1; x < 2; x++ {
 		for y := -1; y < 2; y++ {
-			loc = structs.NewPoint(ani1.Pos.X+ x, ani1.Pos.Y+y)
+			loc = structs.NewPoint(ani1.Pos.X+x, ani1.Pos.Y+y)
 			newTile, ok := w.Tiles[loc]
 			if ok {
 				if !w.Tiles[loc].HasAnimal {
@@ -338,19 +336,21 @@ func spawnBabyAni(ani1, ani2 *structs.Animal){
 						babySheep.Sym = ani1.Sym
 						babySheep.Sty = ani1.Sty
 						babySheep.Pos = loc
-						babySheep.Health = int(float32((ani1.Health + ani2.Health) / 2) * goodMut) 
+						babySheep.Health = int(float32((ani1.Health+ani2.Health)/2) * goodMut)
 						babySheep.Hunger = 50
 						babySheep.Horniness = int(float32(40) * badMut)
 						babySheep.DeadCount = 0
-						babySheep.Speed = int(float32((ani1.Speed + ani2.Speed) / 2) * badMut)
+						babySheep.Speed = int(float32((ani1.Speed+ani2.Speed)/2) * badMut)
 						babySheep.SpeedCount = babySheep.Speed
-						babySheep.Maxhealth = int(float32((ani1.Maxhealth + ani2.Maxhealth) / 2) * goodMut)
-						babySheep.Maxhunger = int(float32((ani1.Maxhunger + ani2.Maxhunger) / 2) * goodMut)
-						babySheep.Sight = int(float32((ani1.Sight + ani2.Sight) / 2) * goodMut)
+						babySheep.Maxhealth = int(float32((ani1.Maxhealth+ani2.Maxhealth)/2) * goodMut)
+						babySheep.Maxhunger = int(float32((ani1.Maxhunger+ani2.Maxhunger)/2) * goodMut)
+						babySheep.Sight = int(float32((ani1.Sight+ani2.Sight)/2) * goodMut)
 						babySheep.Fleeing = false
 						babySheep.Hunting = false
 						babySheep.Hungry = false
 						babySheep.Dead = false
+						babySheep.ToGo = loc
+						babySheep.ToGoPath = []structs.Point{structs.NewPoint(loc.X, loc.Y)}
 						a.Sheeps = append(a.Sheeps, babySheep)
 
 						newTile.HasAnimal = true
@@ -362,19 +362,21 @@ func spawnBabyAni(ani1, ani2 *structs.Animal){
 						babyWolf.Sym = ani1.Sym
 						babyWolf.Sty = ani1.Sty
 						babyWolf.Pos = loc
-						babyWolf.Health = int(float32((ani1.Health + ani2.Health) / 2) * goodMut) 
+						babyWolf.Health = int(float32((ani1.Health+ani2.Health)/2) * goodMut)
 						babyWolf.Hunger = 50
 						babyWolf.Horniness = int(float32(40) * badMut)
 						babyWolf.DeadCount = 0
-						babyWolf.Speed = int(float32((ani1.Speed + ani2.Speed) / 2) * badMut)
+						babyWolf.Speed = int(float32((ani1.Speed+ani2.Speed)/2) * badMut)
 						babyWolf.SpeedCount = babyWolf.Speed
-						babyWolf.Maxhealth = int(float32((ani1.Maxhealth + ani2.Maxhealth) / 2) * goodMut)
-						babyWolf.Maxhunger = int(float32((ani1.Maxhunger + ani2.Maxhunger) / 2) * goodMut)
-						babyWolf.Sight = int(float32((ani1.Sight + ani2.Sight) / 2) * goodMut)
+						babyWolf.Maxhealth = int(float32((ani1.Maxhealth+ani2.Maxhealth)/2) * goodMut)
+						babyWolf.Maxhunger = int(float32((ani1.Maxhunger+ani2.Maxhunger)/2) * goodMut)
+						babyWolf.Sight = int(float32((ani1.Sight+ani2.Sight)/2) * goodMut)
 						babyWolf.Fleeing = false
 						babyWolf.Hunting = false
 						babyWolf.Hungry = false
 						babyWolf.Dead = false
+						babyWolf.ToGo = loc
+						babyWolf.ToGoPath = []structs.Point{structs.NewPoint(loc.X, loc.Y)}
 						a.Wolves = append(a.Wolves, babyWolf)
 
 						newTile.HasAnimal = true
@@ -386,36 +388,33 @@ func spawnBabyAni(ani1, ani2 *structs.Animal){
 				}
 			}
 		}
-	} 
+	}
 }
 
-func updateSheepState(sheep *structs.Animal){
+func updateSheepState(sheep *structs.Animal) {
 	if sheep.Hunger > 0 {
-		sheep.Hunger --
+		sheep.Hunger--
 	}
 
 	if sheep.Horniness > 0 {
 		sheep.Horniness--
 	}
-	
-	if sheep.Health <=0 && !sheep.Dead{
+
+	if sheep.Health <= 0 && !sheep.Dead {
 		sheep.Dead = true
 		sheep.Sty = structs.GetSetStyles("DeadSheep")
 	}
 
-	if sheep.Hunger <= 7 {
+	if sheep.Hunger <= 0 {
 		sheep.Hungry = true
-	}
-
-	if sheep.Hunger < 0{
 		sheep.Health--
-	}
-
-	if sheep.Hunger > 7 {
+	} else if sheep.Hunger <= 10 {
+		sheep.Hungry = true
+	} else if sheep.Hunger > 0 {
 		sheep.Hungry = false
 	}
 
-	if sheep.Horniness <= 0 && !sheep.Horny{
+	if sheep.Horniness <= 0 && !sheep.Horny {
 		sheep.Horny = true
 	}
 
@@ -423,17 +422,16 @@ func updateSheepState(sheep *structs.Animal){
 		sheep.DeadCount++
 	}
 
-	if sheep.SpeedCount <=0 {
+	if sheep.SpeedCount <= 0 {
 		sheep.SpeedCount = sheep.Speed
 	}
 
-	sheep.SpeedCount --
+	sheep.SpeedCount--
 
 	tile := w.Tiles[sheep.Pos]
 	tile.AnimalType = *sheep
 	w.Tiles[sheep.Pos] = tile
 }
-
 
 func eat(sheep *structs.Animal) {
 	findFood(sheep)
@@ -447,7 +445,7 @@ func hunt(wolf *structs.Animal) {
 	for i := range a.Sheeps {
 		spos := a.Sheeps[i].Pos
 		dist := wpos.DistanceTo(spos)
-		if w.Tiles[wpos].IslandNumber != w.Tiles[spos].IslandNumber{
+		if w.Tiles[wpos].IslandNumber != w.Tiles[spos].IslandNumber {
 			continue
 		}
 
@@ -455,14 +453,14 @@ func hunt(wolf *structs.Animal) {
 			minDist = dist
 			tarSheep = a.Sheeps[i]
 		}
-		
-		if dist <= 1 && a.Sheeps[i].Dead{
+
+		if dist <= 1 && a.Sheeps[i].Dead {
 			a.Sheeps[i].Health -= 25
 			wolf.Hunger += 100
 			wolf.ToGo = a.Sheeps[i].Pos
 			wolf.ToGoPath = pathfinding.Astar(wpos, spos, a.WolfMaze)
 			return
-		} else if dist <= 1 && !a.Sheeps[i].Dead{
+		} else if dist <= 1 && !a.Sheeps[i].Dead {
 			a.Sheeps[i].Health -= 25
 			wolf.ToGo = a.Sheeps[i].Pos
 			wolf.ToGoPath = pathfinding.Astar(wpos, spos, a.WolfMaze)
@@ -482,9 +480,9 @@ func hunt(wolf *structs.Animal) {
 // Wolf functions
 func wolfLogic() {
 	for i := 0; i < len(a.Wolves); i++ {
-		if a.Wolves[i].Dead && a.Wolves[i].DeadCount > 10 {
+		if a.Wolves[i].Dead && a.Wolves[i].DeadCount > 50 {
 			removeAnimal(&a.Wolves[i])
-		} else if a.Wolves[i].Dead{
+		} else if a.Wolves[i].Dead {
 			updateWolfState(&a.Wolves[i])
 		} else {
 			if a.Wolves[i].Hungry {
@@ -504,7 +502,7 @@ func wolfLogic() {
 	}
 }
 
-func updateWolfState(wolf *structs.Animal){
+func updateWolfState(wolf *structs.Animal) {
 	if wolf.Hunger > 0 {
 		wolf.Hunger--
 	}
@@ -512,22 +510,22 @@ func updateWolfState(wolf *structs.Animal){
 	if wolf.Horniness > 0 {
 		wolf.Horniness--
 	}
-	
-	if wolf.Health <=0 && !wolf.Dead{
+
+	if wolf.Health <= 0 && !wolf.Dead {
 		wolf.Dead = true
-		wolf.Sty = structs.GetSetStyles("DeadSheep")
+		wolf.Sty = structs.GetSetStyles("DeadWolf")
 	}
 
-	if wolf.Hunger <=0 {
+	if wolf.Hunger <= 0 {
 		wolf.Hungry = true
 		wolf.Health--
-	}else if wolf.Hunger <= 10 {
+	} else if wolf.Hunger <= 10 {
 		wolf.Hungry = true
-	}else if wolf.Hunger > 0 {
+	} else if wolf.Hunger > 0 {
 		wolf.Hungry = false
 	}
 
-	if wolf.Horniness <= 0 && !wolf.Horny{
+	if wolf.Horniness <= 0 && !wolf.Horny {
 		wolf.Horny = true
 	}
 
@@ -535,26 +533,26 @@ func updateWolfState(wolf *structs.Animal){
 		wolf.DeadCount++
 	}
 
-	if wolf.SpeedCount <=0 {
+	if wolf.SpeedCount <= 0 {
 		wolf.SpeedCount = wolf.Speed
 	}
 
-	wolf.SpeedCount --
+	wolf.SpeedCount--
 
 	tile := w.Tiles[wolf.Pos]
 	tile.AnimalType = *wolf
 	w.Tiles[wolf.Pos] = tile
 }
 
-func roam(ani *structs.Animal){
+func roam(ani *structs.Animal) {
 	for {
-		x := rand.Int()%(ani.Sight*2)-ani.Sight
-		y := rand.Int()%(ani.Sight*2)-ani.Sight
+		x := rand.Int()%(ani.Sight*2) - ani.Sight
+		y := rand.Int()%(ani.Sight*2) - ani.Sight
 		loc := structs.NewPoint(ani.Pos.X+x, ani.Pos.Y+y)
-		ok,_  := isIn(loc, w.LandTile)
-		
+		ok, _ := isIn(loc, w.LandTile)
+
 		if ok {
-			if w.Tiles[loc].IslandNumber == w.Tiles[ani.Pos].IslandNumber{
+			if w.Tiles[loc].IslandNumber == w.Tiles[ani.Pos].IslandNumber {
 				ani.ToGo = loc
 				ani.ToGoPath = pathfinding.Astar(ani.Pos, loc, a.SheepMaze)
 				return
@@ -563,12 +561,12 @@ func roam(ani *structs.Animal){
 	}
 }
 
-func lookForWolves(sheep *structs.Animal){
+func lookForWolves(sheep *structs.Animal) {
 	sheep.Fleeing = false
 	var loc structs.Point
-	for x := -sheep.Sight; x <= sheep.Sight; x ++ {
-		for y := -sheep.Sight; y <= sheep.Sight; y ++{
-			loc = structs.NewPoint(sheep.Pos.X + x, sheep.Pos.Y+ y)
+	for x := -sheep.Sight; x <= sheep.Sight; x++ {
+		for y := -sheep.Sight; y <= sheep.Sight; y++ {
+			loc = structs.NewPoint(sheep.Pos.X+x, sheep.Pos.Y+y)
 			tile, ok := w.Tiles[loc]
 			if ok {
 				if tile.HasAnimal {
@@ -578,18 +576,18 @@ func lookForWolves(sheep *structs.Animal){
 						var runToDis float32
 						runToPos = sheep.Pos
 						runToDis = 0
-							for yy := sheep.Pos.Y-1; yy <=sheep.Pos.Y+1; yy++ {
-								for xx := sheep.Pos.X-1; xx <=sheep.Pos.X+1; xx++ {
-									checkPos := structs.NewPoint(xx,yy)
-									okk, _ := isIn(checkPos, w.LandTile)
-									if okk {
-										if checkPos.DistanceTo(tile.AnimalType.Pos) > runToDis {
-											runToDis = checkPos.DistanceTo(tile.AnimalType.Pos)
-											runToPos = checkPos
-										}
+						for yy := sheep.Pos.Y - 1; yy <= sheep.Pos.Y+1; yy++ {
+							for xx := sheep.Pos.X - 1; xx <= sheep.Pos.X+1; xx++ {
+								checkPos := structs.NewPoint(xx, yy)
+								okk, _ := isIn(checkPos, w.LandTile)
+								if okk {
+									if checkPos.DistanceTo(tile.AnimalType.Pos) > runToDis {
+										runToDis = checkPos.DistanceTo(tile.AnimalType.Pos)
+										runToPos = checkPos
 									}
 								}
 							}
+						}
 						sheep.ToGo = runToPos
 						var p []structs.Point = make([]structs.Point, 1)
 						p[0] = runToPos
@@ -602,7 +600,7 @@ func lookForWolves(sheep *structs.Animal){
 	}
 }
 
-func findFood(ani *structs.Animal){
+func findFood(ani *structs.Animal) {
 	ani.ToGo = findClosestGrassTile(ani.Pos, w)
 	ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.SheepMaze)
 	if w.Tiles[ani.Pos].TerrainDesc == "Land" {
@@ -634,17 +632,17 @@ func herd(sheep *structs.Animal) {
 	}
 }
 
-func removeAnimal(ani *structs.Animal){
+func removeAnimal(ani *structs.Animal) {
 	tempTile := w.Tiles[ani.Pos]
 	tempTile.HasAnimal = false
 	w.Tiles[ani.Pos] = tempTile
 	findAndRemoveAnimal(ani)
 }
 
-func findAndRemoveAnimal(ani *structs.Animal){
-	if ani.Desc == "Sheep"{
-		for i:= 0; i < len(a.Sheeps); i++ {
-			if cmp.Equal(*ani, a.Sheeps[i]){
+func findAndRemoveAnimal(ani *structs.Animal) {
+	if ani.Desc == "Sheep" {
+		for i := 0; i < len(a.Sheeps); i++ {
+			if cmp.Equal(*ani, a.Sheeps[i]) {
 				if len(a.Sheeps) == 1 {
 					a.Sheeps = nil
 				} else {
@@ -656,16 +654,14 @@ func findAndRemoveAnimal(ani *structs.Animal){
 			}
 		}
 
-	} else if ani.Desc == "Wolf"{
-		if len(a.Wolves) == 1 {
-			a.Wolves = nil
-		}
-		for i:= 0; i < len(a.Wolves); i++ {
-			if cmp.Equal(ani, a.Wolves[i]){
+	} else if ani.Desc == "Wolf" {
+		for i := 0; i < len(a.Wolves); i++ {
+			if cmp.Equal(*ani, a.Wolves[i]) {
 				if len(a.Wolves) == 1 {
 					a.Wolves = nil
 				} else {
-					a.Wolves[len(a.Wolves)-1] = a.Wolves[i]
+					a.Wolves[i] = a.Wolves[len(a.Wolves)-1]
+					a.Wolves[i].Key = i
 					a.Wolves = a.Wolves[:len(a.Wolves)-1]
 					return
 				}
@@ -678,7 +674,7 @@ func setLandSpawn(a *structs.Animal) {
 	(*a).Pos = w.LandTile[rand.Intn(len(w.LandTile))]
 }
 
-func moveAnimal(ani structs.Animal, p structs.Point) (r bool){
+func moveAnimal(ani structs.Animal, p structs.Point) (r bool) {
 	tileFrom, okFrom := w.Tiles[ani.Pos]
 	tileTo, okTo := w.Tiles[p]
 	if okTo && okFrom {
@@ -698,8 +694,8 @@ func moveAnimalOnPath(ani *structs.Animal) {
 	if ani.ToGoPath == nil {
 		return
 	}
-	
-	if ani.ToGoPath != nil { 
+
+	if ani.ToGoPath != nil {
 		if w.Tiles[ani.ToGoPath[0]].HasAnimal {
 			ani.ToGoPath = nil
 			return
@@ -775,11 +771,11 @@ func closestIslandTile(p structs.Point, islNum int) (r structs.Point) {
 	return
 }
 
-func findClosestLandTile(p structs.Point, wor structs.World) (r structs.Point){
+func findClosestLandTile(p structs.Point, wor structs.World) (r structs.Point) {
 	min := float32(math.Inf(1))
 	for _, grass := range wor.LandTile {
 		dist := p.DistanceTo(grass)
-		if (dist < min) {
+		if dist < min {
 			min = dist
 			r = grass
 		}
@@ -787,15 +783,15 @@ func findClosestLandTile(p structs.Point, wor structs.World) (r structs.Point){
 	return
 }
 
-func findClosestGrassTile(p structs.Point, wor structs.World) (r structs.Point){
+func findClosestGrassTile(p structs.Point, wor structs.World) (r structs.Point) {
 	min := float32(math.Inf(1))
 	r = p
 	for _, grass := range wor.LandTile {
-		if w.Tiles[grass].IslandNumber == w.Tiles[p].IslandNumber && w.Tiles[grass].TerrainDesc == "Land"{
+		if w.Tiles[grass].IslandNumber == w.Tiles[p].IslandNumber && w.Tiles[grass].TerrainDesc == "Land" && !w.Tiles[grass].HasAnimal {
 			dist := p.DistanceTo(grass)
-			if dist < min{
-					min = dist
-					r = grass
+			if dist < min {
+				min = dist
+				r = grass
 			}
 		}
 	}
