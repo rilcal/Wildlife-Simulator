@@ -39,8 +39,8 @@ func generateInitialVariables() {
 	}
 	s.Init() //***
 	w = structs.NewWorld(40, 40)
-	//x, y := s.Size()               //***
-	//w = structs.NewWorld(x-1, y-1) //***
+	x, y := s.Size()               //***
+	w = structs.NewWorld(x-1, y-1) //***
 	generateTerrain()
 }
 
@@ -196,7 +196,7 @@ func mainLoop() {
 		sheepLogic()
 		wolfLogic()
 		updateScreen() //***
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 250)
 	}
 }
 
@@ -205,7 +205,7 @@ func sheepLogic() {
 	for i := 0; i < len(a.Sheeps); i++ {
 		if a.Sheeps[i].Dead && a.Sheeps[i].DeadCount > 50 {
 			removeAnimal(&a.Sheeps[i])
-		} else if a.Sheeps[i].Dead && a.Sheeps[i].Health < 50 {
+		} else if a.Sheeps[i].Dead && a.Sheeps[i].Health < -50 {
 			removeAnimal(&a.Sheeps[i])
 		} else if a.Sheeps[i].Dead {
 			updateSheepState(&a.Sheeps[i])
@@ -546,57 +546,67 @@ func updateWolfState(wolf *structs.Animal) {
 
 func roam(ani *structs.Animal) {
 	for {
-		x := rand.Int()%(ani.Sight*2) - ani.Sight
-		y := rand.Int()%(ani.Sight*2) - ani.Sight
-		loc := structs.NewPoint(ani.Pos.X+x, ani.Pos.Y+y)
-		ok, _ := isIn(loc, w.LandTile)
+		x, y := s.Size()
+		rx := rand.Int() % (x-1) 
+		ry := rand.Int() % (y-1)
+		loc := structs.NewPoint(rx, ry)
+		tile, ok := w.Tiles[loc]
 
 		if ok {
-			if w.Tiles[loc].IslandNumber == w.Tiles[ani.Pos].IslandNumber {
-				ani.ToGo = loc
-				ani.ToGoPath = pathfinding.Astar(ani.Pos, loc, a.SheepMaze)
-				return
+			if !(tile.TerrainDesc == "Water") && !tile.HasAnimal {
+				if tile.IslandNumber == w.Tiles[ani.Pos].IslandNumber {
+					ani.ToGo = loc
+					ani.ToGoPath = pathfinding.Astar(ani.Pos, loc, a.SheepMaze)
+					return
+				}
 			}
 		}
 	}
 }
 
-func lookForWolves(sheep *structs.Animal) {
-	sheep.Fleeing = false
-	var loc structs.Point
-	for x := -sheep.Sight; x <= sheep.Sight; x++ {
-		for y := -sheep.Sight; y <= sheep.Sight; y++ {
-			loc = structs.NewPoint(sheep.Pos.X+x, sheep.Pos.Y+y)
-			tile, ok := w.Tiles[loc]
-			if ok {
-				if tile.HasAnimal {
-					if tile.AnimalType.Desc == "Wolf" {
-						sheep.Fleeing = true
-						var runToPos structs.Point
-						var runToDis float32
-						runToPos = sheep.Pos
-						runToDis = 0
-						for yy := sheep.Pos.Y - 1; yy <= sheep.Pos.Y+1; yy++ {
-							for xx := sheep.Pos.X - 1; xx <= sheep.Pos.X+1; xx++ {
-								checkPos := structs.NewPoint(xx, yy)
-								okk, _ := isIn(checkPos, w.LandTile)
-								if okk {
-									if checkPos.DistanceTo(tile.AnimalType.Pos) > runToDis {
-										runToDis = checkPos.DistanceTo(tile.AnimalType.Pos)
-										runToPos = checkPos
-									}
-								}
-							}
+func lookForWolves(sheep *structs.Animal){
+	spos := sheep.Pos
+	var minDist float32 = float32(math.Inf(1))
+	var tarWolf structs.Animal
+	var found bool
+
+	for i := range a.Wolves {
+		wpos := a.Wolves[i].Pos
+		dist := spos.DistanceTo(wpos)
+		if w.Tiles[spos].IslandNumber != w.Tiles[wpos].IslandNumber {
+			continue
+		}
+
+		if dist < minDist {
+			tarWolf = a.Wolves[i]
+			minDist = dist
+			found = true
+		}
+	}
+	
+	var bestSpot structs.Point = sheep.Pos
+	var bestDist float32 = 0
+	if found {
+		if minDist < float32(sheep.Sight) {
+			sheep.Fleeing = true
+			for x := -1; x < 2; x++ {
+				for y := -1; y < 2; y++{
+					loc := structs.NewPoint(sheep.Pos.X + x, sheep.Pos.Y + y)
+					dist := loc.DistanceTo(tarWolf.Pos)
+					tile, ok := w.Tiles[loc]
+					if ok {
+						if dist > bestDist && !tile.HasAnimal && tile.TerrainDesc != "Water" {
+							bestSpot = loc
+							bestDist = dist
 						}
-						sheep.ToGo = runToPos
-						var p []structs.Point = make([]structs.Point, 1)
-						p[0] = runToPos
-						sheep.ToGoPath = p
-						return
 					}
 				}
 			}
+			sheep.ToGo = bestSpot
+			sheep.ToGoPath = []structs.Point{bestSpot}
 		}
+	} else {
+		sheep.Fleeing = false
 	}
 }
 
