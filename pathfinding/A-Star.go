@@ -7,22 +7,21 @@ import (
 )
 
 // Astar follows the a* search algorithm to quickly generate the fastest path to a given target point from a given start point in a matrix of given movement matrix
-func Astar(start structs.Point, target structs.Point, matrix [][]int) (path []structs.Point) {
-	xlen := len(matrix)
-	ylen := len(matrix[1])
+func Astar(start structs.Point, target structs.Point, matrix map[structs.Point]int) (path []structs.Point) {
+	length := len(matrix)
 
 	var current node
 	current.pos = start
 	current.g = 0
-	current.pathto = make([]structs.Point, 0, xlen*ylen)
+	current.pathto = make([]structs.Point, 0, length)
 	current.pathto = append(current.pathto, start)
 	current.parentPos = start
 
-	openList := make([]node, 0, xlen*ylen)
+	openList := make([]node, 0, length)
 	openList = append(openList, current)
-	closedList := make([]node, 0, xlen*ylen)
+	closedList := make([]node, 0, length)
 
-	for i := 1; i < xlen*ylen*10; i++ {
+	for i := 1; i < length*10; i++ {
 		if current.pos == target {
 			tmp := make([]structs.Point, len(current.pathto))
 			copy(tmp, current.pathto)
@@ -41,16 +40,16 @@ func Astar(start structs.Point, target structs.Point, matrix [][]int) (path []st
 				if x == 0 && y == 0 {
 					continue
 				}
+				loc := structs.NewPoint(current.pos.X+x, current.pos.Y+y)
+				score, ok := matrix[loc]
 
-				if (current.pos.X+x) < xlen && (current.pos.X+x) >= 0 && (current.pos.Y+y) < ylen && (current.pos.Y+y) >= 0 {
-					p = structs.NewPoint(current.pos.X+x, current.pos.Y+y)
-
+				if ok {
 					if isIn(p, openList) || isIn(p, closedList) {
 						continue
 					}
 					var pathToCurrent []structs.Point
 					pathToParent := make([]structs.Point, len(current.pathto))
-					g = current.g + matrix[current.pos.X+x][current.pos.Y+y]
+					g = current.g + score
 					copy(pathToParent, current.pathto)
 					pathToCurrent = append(pathToParent, p)
 					neighborNode := newNode(p, current.pos, g, pathToCurrent)

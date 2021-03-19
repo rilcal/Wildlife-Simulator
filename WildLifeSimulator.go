@@ -586,6 +586,7 @@ func lookForWolves(sheep *structs.Animal){
 	
 	var bestSpot structs.Point = sheep.Pos
 	var bestDist float32 = 0
+	sheep.Fleeing = false
 	if found {
 		if minDist < float32(sheep.Sight) {
 			sheep.Fleeing = true
@@ -605,8 +606,6 @@ func lookForWolves(sheep *structs.Animal){
 			sheep.ToGo = bestSpot
 			sheep.ToGoPath = []structs.Point{bestSpot}
 		}
-	} else {
-		sheep.Fleeing = false
 	}
 }
 
@@ -629,7 +628,7 @@ func herd(sheep *structs.Animal) {
 			continue
 		}
 
-		if sheep.Pos.DistanceTo(a.Sheeps[j].Pos) <= float32(sheep.Sight) {
+		if sheep.Pos.DistanceTo(a.Sheeps[j].Pos) <= float32(sheep.Sight) && !a.Sheeps[j].Dead{
 			pointsOfSheepInHerd = append(pointsOfSheepInHerd, a.Sheeps[j].Pos)
 		}
 	}
