@@ -197,7 +197,7 @@ func mainLoop() {
 		sheepLogic()
 		wolfLogic()
 		updateScreen() //***
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 10)
 	}
 }
 
@@ -546,12 +546,18 @@ func updateWolfState(wolf *structs.Animal) {
 }
 
 func roam(ani *structs.Animal) {
+	x, y := s.Size()
+	var rx int
+	var ry int
+	var tile structs.Tile
+	var ok bool
+	var loc structs.Point
 	for {
-		x, y := s.Size()
-		rx := rand.Int() % (x-1) 
-		ry := rand.Int() % (y-1)
-		loc := structs.NewPoint(rx, ry)
-		tile, ok := w.Tiles[loc]
+		
+		rx = rand.Int() % (x-1) 
+		ry = rand.Int() % (y-1)
+		loc = structs.NewPoint(rx, ry)
+		tile, ok = w.Tiles[loc]
 
 		if ok {
 			if !(tile.TerrainDesc == "Water") && !tile.HasAnimal {

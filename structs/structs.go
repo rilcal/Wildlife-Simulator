@@ -180,7 +180,7 @@ func GenerateMazes(w World) (landMaze map[Point]int){
 		for y := 0; y < ylen; y++ {
 			location := NewPoint(x, y)
 			if w.Tiles[location].TerrainDesc == "Water" {
-				landMaze[location] = 999
+				//landMaze[location] = 999
 			} else if w.Tiles[location].TerrainDesc == "Land" {
 				landMaze[location] = 1
 			} else if w.Tiles[location].TerrainDesc == "Mountain" {
