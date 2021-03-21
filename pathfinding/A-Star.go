@@ -40,8 +40,8 @@ func Astar(start structs.Point, target structs.Point, matrix map[structs.Point]i
 				if x == 0 && y == 0 {
 					continue
 				}
-				loc := structs.NewPoint(current.pos.X+x, current.pos.Y+y)
-				score, ok := matrix[loc]
+				p = structs.NewPoint(current.pos.X+x, current.pos.Y+y)
+				score, ok := matrix[p]
 
 				if ok {
 					if isIn(p, openList) || isIn(p, closedList) {

@@ -21,8 +21,9 @@ var a structs.Animals
 // MAIN FUNCTION
 func main() {
 	generateInitialVariables()
-	populateWorld(30, 2)
-	a.SheepMaze, a.WolfMaze = structs.GenerateMazes(w)
+	populateWorld(50, 10)
+	a.LandMaze = structs.GenerateMazes(w)
+	a.OrigLandMaze = a.LandMaze
 	defer s.Fini() //***
 	rand.Seed(time.Now().UnixNano())
 	updateScreen() //***
@@ -38,7 +39,7 @@ func generateInitialVariables() {
 		fmt.Println(err)
 	}
 	s.Init() //***
-	w = structs.NewWorld(40, 40)
+	//w = structs.NewWorld(100, 100)
 	x, y := s.Size()               //***
 	w = structs.NewWorld(x-1, y-1) //***
 	generateTerrain()
@@ -196,7 +197,7 @@ func mainLoop() {
 		sheepLogic()
 		wolfLogic()
 		updateScreen() //***
-		time.Sleep(time.Millisecond * 250)
+		time.Sleep(time.Millisecond * 100)
 	}
 }
 
@@ -262,7 +263,7 @@ func breed(ani *structs.Animal) {
 				closestHornySheep.Horny = false
 			} else {
 				ani.ToGo = closestHornySheep.Pos
-				ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.SheepMaze)
+				ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.LandMaze)
 			}
 		} else {
 			herd(ani)
@@ -299,10 +300,8 @@ func breed(ani *structs.Animal) {
 				closestHornyWolf.Horny = false
 			} else {
 				ani.ToGo = closestHornyWolf.Pos
-				ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.WolfMaze)
+				ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.LandMaze)
 			}
-		} else {
-			roam(ani)
 		}
 	}
 }
@@ -313,8 +312,8 @@ func spawnBabyAni(ani1, ani2 *structs.Animal) {
 		for y := -1; y < 2; y++ {
 			loc = structs.NewPoint(ani1.Pos.X+x, ani1.Pos.Y+y)
 			newTile, ok := w.Tiles[loc]
-			if ok {
-				if !w.Tiles[loc].HasAnimal {
+			if ok { 
+				if !w.Tiles[loc].HasAnimal && w.Tiles[loc].TerrainDesc != "Water" {
 
 					ranNum := rand.Int() % 10
 					var goodMut float32
@@ -347,10 +346,11 @@ func spawnBabyAni(ani1, ani2 *structs.Animal) {
 						babySheep.Sight = int(float32((ani1.Sight+ani2.Sight)/2) * goodMut)
 						babySheep.Fleeing = false
 						babySheep.Hunting = false
+						babySheep.Horny = false
 						babySheep.Hungry = false
 						babySheep.Dead = false
-						babySheep.ToGo = loc
-						babySheep.ToGoPath = []structs.Point{structs.NewPoint(loc.X, loc.Y)}
+						babySheep.ToGo = babySheep.Pos
+						babySheep.ToGoPath = []structs.Point{babySheep.Pos}
 						a.Sheeps = append(a.Sheeps, babySheep)
 
 						newTile.HasAnimal = true
@@ -373,6 +373,7 @@ func spawnBabyAni(ani1, ani2 *structs.Animal) {
 						babyWolf.Sight = int(float32((ani1.Sight+ani2.Sight)/2) * goodMut)
 						babyWolf.Fleeing = false
 						babyWolf.Hunting = false
+						babyWolf.Horny = false
 						babyWolf.Hungry = false
 						babyWolf.Dead = false
 						babyWolf.ToGo = loc
@@ -458,19 +459,19 @@ func hunt(wolf *structs.Animal) {
 			a.Sheeps[i].Health -= 25
 			wolf.Hunger += 100
 			wolf.ToGo = a.Sheeps[i].Pos
-			wolf.ToGoPath = pathfinding.Astar(wpos, spos, a.WolfMaze)
+			wolf.ToGoPath = pathfinding.Astar(wpos, spos, a.LandMaze)
 			return
 		} else if dist <= 1 && !a.Sheeps[i].Dead {
 			a.Sheeps[i].Health -= 25
 			wolf.ToGo = a.Sheeps[i].Pos
-			wolf.ToGoPath = pathfinding.Astar(wpos, spos, a.WolfMaze)
+			wolf.ToGoPath = pathfinding.Astar(wpos, spos, a.LandMaze)
 			return
 		}
 	}
 
 	if minDist < float32(wolf.Sight) {
 		wolf.ToGo = tarSheep.Pos
-		wolf.ToGoPath = pathfinding.Astar(wolf.Pos, tarSheep.Pos, a.WolfMaze)
+		wolf.ToGoPath = pathfinding.Astar(wolf.Pos, tarSheep.Pos, a.LandMaze)
 		return
 	}
 
@@ -489,7 +490,7 @@ func wolfLogic() {
 				hunt(&a.Wolves[i])
 			} else if a.Wolves[i].Horny {
 				breed(&a.Wolves[i])
-			} else {
+			} else if a.Wolves[i].ToGoPath == nil{
 				roam(&a.Wolves[i])
 			}
 
@@ -556,7 +557,7 @@ func roam(ani *structs.Animal) {
 			if !(tile.TerrainDesc == "Water") && !tile.HasAnimal {
 				if tile.IslandNumber == w.Tiles[ani.Pos].IslandNumber {
 					ani.ToGo = loc
-					ani.ToGoPath = pathfinding.Astar(ani.Pos, loc, a.SheepMaze)
+					ani.ToGoPath = pathfinding.Astar(ani.Pos, loc, a.LandMaze)
 					return
 				}
 			}
@@ -611,7 +612,7 @@ func lookForWolves(sheep *structs.Animal){
 
 func findFood(ani *structs.Animal) {
 	ani.ToGo = findClosestGrassTile(ani.Pos, w)
-	ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.SheepMaze)
+	ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.LandMaze)
 	if w.Tiles[ani.Pos].TerrainDesc == "Land" {
 		ani.Hunger += 15
 		tile := w.Tiles[ani.Pos]
@@ -637,7 +638,7 @@ func herd(sheep *structs.Animal) {
 	sheep.ToGo = moveToPosition
 
 	if sheep.ToGoPath == nil {
-		sheep.ToGoPath = pathfinding.Astar(sheep.Pos, sheep.ToGo, a.SheepMaze)
+		sheep.ToGoPath = pathfinding.Astar(sheep.Pos, sheep.ToGo, a.LandMaze)
 	}
 }
 
@@ -687,6 +688,8 @@ func moveAnimal(ani structs.Animal, p structs.Point) (r bool) {
 	tileFrom, okFrom := w.Tiles[ani.Pos]
 	tileTo, okTo := w.Tiles[p]
 	if okTo && okFrom {
+		a.LandMaze[ani.Pos] = a.OrigLandMaze[ani.Pos]
+		a.LandMaze[p] = 100
 		tileFrom.HasAnimal = false
 		w.Tiles[ani.Pos] = tileFrom
 		tileTo.HasAnimal = true

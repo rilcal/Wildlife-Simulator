@@ -39,9 +39,9 @@ type Tile struct {
 type Animals struct {
 	Mu        *sync.Mutex
 	Sheeps    []Animal
-	SheepMaze map[Point]int
+	LandMaze map[Point]int
+	OrigLandMaze map[Point]int
 	Wolves    []Animal
-	WolfMaze  map[Point]int
 }
 
 // Animal stores all information related to an Animal in the Animals structure
@@ -171,31 +171,26 @@ func AveragePoints(s []Point) (p Point) {
 	return
 }
 
-func GenerateMazes(w World) (sheepMaze, wolfMaze map[Point]int){
+func GenerateMazes(w World) (landMaze map[Point]int){
 	xlen := w.Width
 	ylen := w.Length
-	sheepMaze = make(map[Point]int)
-	wolfMaze = make(map[Point]int)
+	landMaze = make(map[Point]int)
 
 	for x := 0; x < xlen; x++ {
 		for y := 0; y < ylen; y++ {
 			location := NewPoint(x, y)
 			if w.Tiles[location].TerrainDesc == "Water" {
-				sheepMaze[location] = 999
-				wolfMaze[location] = 999
+				landMaze[location] = 999
 			} else if w.Tiles[location].TerrainDesc == "Land" {
-				sheepMaze[location] = 1
-				wolfMaze[location] = 1
+				landMaze[location] = 1
 			} else if w.Tiles[location].TerrainDesc == "Mountain" {
-				sheepMaze[location] = 2
-				wolfMaze[location] = 2
+				landMaze[location] = 2
 			} else {
-				sheepMaze[location] = -1
-				wolfMaze[location] = -1
+				landMaze[location] = -1
 			}
 		}
 	}
-	return sheepMaze, wolfMaze
+	return landMaze
 }
 
 
