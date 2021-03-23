@@ -180,11 +180,21 @@ func updateScreen() {
 	for point := range w.Tiles {
 		tile, ok := w.Tiles[point]
 		if ok {
+			if tile.Regrow < 0 && tile.Dead == true {
+				tile.Dead = false
+				tile.Regrow = 0
+			}
+
+
 			if tile.HasAnimal {
 				s.SetContent(point.X, point.Y, rune(tile.AnimalType.Sym), []rune(""), tile.AnimalType.Sty)
-			} else {
+			} else if !tile.Dead{
 				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tile.TerrainStyle)
+			} else if tile.Dead {
+				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tcell.Style(tile.DeadStyle))
+				tile.Regrow--
 			}
+			w.Tiles[point] = tile
 		} else {
 			panic("Something wrong in updateScreen")
 		}
@@ -622,8 +632,8 @@ func findFood(ani *structs.Animal) {
 	if w.Tiles[ani.Pos].TerrainDesc == "Land" {
 		ani.Hunger += 15
 		tile := w.Tiles[ani.Pos]
-		tile.TerrainDesc = "DeadGrass"
-		tile.TerrainStyle = structs.GetSetStyles("DeadGrass")
+		tile.Dead = true
+		tile.Regrow = rand.Int() % 1000 + 100
 		w.Tiles[ani.Pos] = tile
 	}
 }
@@ -805,7 +815,7 @@ func findClosestGrassTile(p structs.Point, wor structs.World) (r structs.Point) 
 	min := float32(math.Inf(1))
 	r = p
 	for _, grass := range wor.LandTile {
-		if w.Tiles[grass].IslandNumber == w.Tiles[p].IslandNumber && w.Tiles[grass].TerrainDesc == "Land" && !w.Tiles[grass].HasAnimal {
+		if w.Tiles[grass].IslandNumber == w.Tiles[p].IslandNumber && w.Tiles[grass].TerrainDesc == "Land" && !w.Tiles[grass].HasAnimal && !w.Tiles[grass].Dead{
 			dist := p.DistanceTo(grass)
 			if dist < min {
 				min = dist

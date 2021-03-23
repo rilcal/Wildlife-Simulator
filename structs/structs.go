@@ -33,6 +33,9 @@ type Tile struct {
 	HasAnimal    bool
 	AnimalType   Animal
 	IslandNumber int
+	Regrow int
+	Dead bool
+	DeadStyle int
 }
 
 // Animals contains all animals present within the world
@@ -116,6 +119,8 @@ func GetTileType(tileDesc string) (t Tile) {
 		t = NewTile("Water", '~', GetSetStyles("Water"), false)
 	} else if tileDesc == "Land" {
 		t = NewTile("Land", '#', GetSetStyles("Land"), false)
+		t.Dead = false
+		t.DeadStyle = int(GetSetStyles("DeadGrass"))
 	} else if tileDesc == "Mountain" {
 		t = NewTile("Mountain", 'M', GetSetStyles("Mountain"), false)
 	} else {
