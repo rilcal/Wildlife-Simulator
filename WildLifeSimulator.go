@@ -43,6 +43,7 @@ func generateInitialVariables() {
 	x, y := s.Size()               //***
 	w = structs.NewWorld(x-1, y-1) //***
 	generateTerrain()
+	initializeScreen()
 }
 
 //generates initial terrain of the structs.World
@@ -176,25 +177,49 @@ func populateWorld(numSheep int, numWolves int) {
 	}
 }
 
-func updateScreen() {
+func initializeScreen(){
 	for point := range w.Tiles {
 		tile, ok := w.Tiles[point]
 		if ok {
-			if tile.Regrow < 0 && tile.Dead == true {
+			if tile.Regrow < 0 && tile.Dead {
 				tile.Dead = false
 				tile.Regrow = 0
 			}
 
+			if tile.HasAnimal {
+				s.SetContent(point.X, point.Y, rune(tile.AnimalType.Sym), []rune(""), tile.AnimalType.Sty)
+			} else {
+				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tile.TerrainStyle)
+			}
+		} else {
+			panic("Something wrong in updateScreen")
+		}
+	}
+	s.Show()
+
+}
+
+func updateScreen() {
+	for i := range w.ChangedTiles {
+		point := w.ChangedTiles[i]
+		tile, ok := w.Tiles[point]
+		if ok {
+			if tile.Regrow < 0 && tile.Dead {
+				tile.Dead = false
+				tile.Regrow = 0
+			}
 
 			if tile.HasAnimal {
 				s.SetContent(point.X, point.Y, rune(tile.AnimalType.Sym), []rune(""), tile.AnimalType.Sty)
-			} else if !tile.Dead{
-				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tile.TerrainStyle)
-			} else if tile.Dead {
+			} else if tile.Dead{
 				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tcell.Style(tile.DeadStyle))
 				tile.Regrow--
-			}
-			w.Tiles[point] = tile
+			} else {
+				s.SetContent(point.X, point.Y, rune(tile.TerrainSym), []rune(""), tile.TerrainStyle)
+				delete(w.ChangedTiles, i)
+ 			}
+
+			 w.Tiles[point] = tile
 		} else {
 			panic("Something wrong in updateScreen")
 		}
@@ -207,7 +232,7 @@ func mainLoop() {
 		sheepLogic()
 		wolfLogic()
 		updateScreen() //***
-		time.Sleep(time.Millisecond * 10)
+		//time.Sleep(time.Millisecond * 10)
 	}
 }
 
@@ -393,7 +418,7 @@ func spawnBabyAni(ani1, ani2 *structs.Animal) {
 						newTile.HasAnimal = true
 						newTile.AnimalType = babyWolf
 					}
-
+					w.ChangedTiles[len(w.ChangedTiles)] = newTile.Pos
 					w.Tiles[loc] = newTile
 					return
 				}
@@ -442,10 +467,20 @@ func updateSheepState(sheep *structs.Animal) {
 	tile := w.Tiles[sheep.Pos]
 	tile.AnimalType = *sheep
 	w.Tiles[sheep.Pos] = tile
+	w.ChangedTiles[len(w.ChangedTiles)] = sheep.Pos
 }
 
 func eat(sheep *structs.Animal) {
-	findFood(sheep)
+	if w.Tiles[sheep.Pos].TerrainDesc == "Land" && !w.Tiles[sheep.Pos].Dead{
+		sheep.Hunger += 15
+		tile := w.Tiles[sheep.Pos]
+		tile.Dead = true
+		tile.Regrow = rand.Int() % 5000 + 5000
+		w.Tiles[sheep.Pos] = tile
+		w.ChangedTiles[len(w.ChangedTiles)] = sheep.Pos
+	} else {
+		findFood(sheep)
+	}
 }
 
 func hunt(wolf *structs.Animal) {
@@ -553,6 +588,7 @@ func updateWolfState(wolf *structs.Animal) {
 	tile := w.Tiles[wolf.Pos]
 	tile.AnimalType = *wolf
 	w.Tiles[wolf.Pos] = tile
+	w.ChangedTiles[len(w.ChangedTiles)] = wolf.Pos
 }
 
 func roam(ani *structs.Animal) {
@@ -629,13 +665,6 @@ func lookForWolves(sheep *structs.Animal){
 func findFood(ani *structs.Animal) {
 	ani.ToGo = findClosestGrassTile(ani.Pos, w)
 	ani.ToGoPath = pathfinding.Astar(ani.Pos, ani.ToGo, a.LandMaze)
-	if w.Tiles[ani.Pos].TerrainDesc == "Land" {
-		ani.Hunger += 15
-		tile := w.Tiles[ani.Pos]
-		tile.Dead = true
-		tile.Regrow = rand.Int() % 1000 + 100
-		w.Tiles[ani.Pos] = tile
-	}
 }
 
 func herd(sheep *structs.Animal) {
@@ -697,13 +726,15 @@ func findAndRemoveAnimal(ani *structs.Animal) {
 }
 
 func setLandSpawn(a *structs.Animal) {
-	(*a).Pos = w.LandTile[rand.Intn(len(w.LandTile))]
+	a.Pos = w.LandTile[rand.Intn(len(w.LandTile))]
 }
 
 func moveAnimal(ani structs.Animal, p structs.Point) (r bool) {
 	tileFrom, okFrom := w.Tiles[ani.Pos]
 	tileTo, okTo := w.Tiles[p]
 	if okTo && okFrom {
+		w.ChangedTiles[len(w.ChangedTiles)] = tileTo.Pos
+		w.ChangedTiles[len(w.ChangedTiles)] = tileFrom.Pos
 		a.LandMaze[ani.Pos] = a.OrigLandMaze[ani.Pos]
 		a.LandMaze[p] = 100
 		tileFrom.HasAnimal = false
@@ -721,9 +752,7 @@ func moveAnimal(ani structs.Animal, p structs.Point) (r bool) {
 func moveAnimalOnPath(ani *structs.Animal) {
 	if ani.ToGoPath == nil {
 		return
-	}
-
-	if ani.ToGoPath != nil {
+	} else {
 		if w.Tiles[ani.ToGoPath[0]].HasAnimal {
 			ani.ToGoPath = nil
 			return

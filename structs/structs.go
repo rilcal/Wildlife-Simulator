@@ -22,11 +22,14 @@ type World struct {
 	//Storing terrain Tile as points
 	LandTile  []Point
 	WaterTile []Point
+
+	ChangedTiles map[int]Point
 }
 
 // Tile contains information related to a specific cell of the Tiles matrix in the World structure
 type Tile struct {
 	// Contains all information needed to print to screen
+	Pos Point
 	TerrainDesc  string
 	TerrainSym   rune
 	TerrainStyle tcell.Style
@@ -206,6 +209,7 @@ func NewWorld(x, y int) (w World) {
 	w.Tiles = make(map[Point]Tile)
 	w.WaterTile = make([]Point, 0)
 	w.LandTile = make([]Point, 0)
+	w.ChangedTiles = make(map[int]Point, 0)
 	return
 }
 
